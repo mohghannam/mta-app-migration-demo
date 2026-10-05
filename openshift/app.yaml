@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-portal
+  template:
+    metadata:
+      labels:
+        app: task-portal
+    spec:
+      imagePullSecrets:
+        - name: rhn-support-mghannam-robot-pull-secret
+      containers:
+        - name: task-portal
+          image: quay.io/rhn_support_mghannam/task-portal:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mtc-demo-db
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mtc-demo-db
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mtc-demo-db
+                  key: DB_PASSWORD
+            - name: FLASK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mtc-demo-db
+                  key: FLASK_SECRET_KEY
+            - name: UPLOAD_DIR
+              value: /app/uploads
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: app-uploads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-portal
+spec:
+  selector:
+    app: task-portal
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: task-portal
+spec:
+  to:
+    kind: Service
+    name: task-portal
+  port:
+    targetPort: 8080

@@ -1,0 +1,2 @@
+This file was created on the SOURCE OpenShift cluster.
+If this file is available after migration, the uploads PVC migrated successfully.
